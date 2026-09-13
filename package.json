@@ -1,1 +1,9 @@
-
+{
+  "name": "chromadrop",
+  "version": "1.0.0",
+  "description": "ChromaDrop – ein kleines Tetris-ähnliches Puzzlespiel mit Farbbonus, spielbar in einem quadratischen Spielfeld direkt im Browser.",
+  "private": true,
+  "scripts": {
+    "start": "python3 -m http.server 8000 --directory src"
+  }
+}
