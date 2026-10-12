@@ -1,0 +1,10 @@
+{
+  "name": "ostinato-arp",
+  "version": "1.0.0",
+  "description": "Pattern-Arpeggiator (Ostinato) für Logic Pro Scripter mit Browser-Editor",
+  "private": true,
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node build.mjs && node --test test/*.test.mjs"
+  }
+}
