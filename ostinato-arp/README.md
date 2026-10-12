@@ -7,7 +7,7 @@ Es wird zuverlässig mit Streichern, Bläsern und Holzbläsern abgestimmt, inklu
 | Datei | Wofür |
 |---|---|
 | `dist/OstinatoArp-Logic.js` | Das Plugin-Skript für Logics **Scripter** (MIDI FX) |
-| `dist/Ostinato-Editor.html` | Browser-Editor: Piano-Roll, Velocity malen, MIDI-File-Import, Vorhören, Export |
+| `dist/Ostinato-Editor.html` | Browser-Editor: Piano-Roll, Velocity malen, MIDI-File-Import, Vorhören, Export (auch als fertiges Logic-Skript mit deinen Patterns) |
 | `src/` | Quellcode (`core.js` wird von Plugin und Editor gemeinsam genutzt) |
 | `test/` | Automatische Tests (Logic-Scripter-Nachbildung + Browser-Test) |
 
@@ -58,7 +58,8 @@ Zwischen zwei Akkorden darfst du die Hände kurz heben (**Akkord-Haltezeit**, St
 - **MIDI-File importieren:** Spur wählen, Starttakt, Anzahl Takte und Oktave einstellen. Grundton und Tongeschlecht werden automatisch erkannt.
 - **Vorhören** über eine Akkordfolge („Em C G D“) mit derselben Logik wie im Plugin.
 - **Einspielen** per MIDI-Keyboard (Chrome/Edge) mit Vorzähler.
-- **Code kopieren** und in Logic oben im Skript bei `USER_PATTERNS = [` einfügen, dann **Run Script**. Das Pattern erscheint mit ★ im Menü.
+- **Logic-Skript inkl. meiner Patterns herunterladen**: liefert das komplette Skript mit allen gespeicherten Patterns. Einfach den ganzen Inhalt in den Scripter einfügen.
+- Oder **Code kopieren** und in Logic oben im Skript bei `USER_PATTERNS = [` einfügen, dann **Run Script**. Das Pattern erscheint mit ★ im Menü.
 
 ### c) Als Text eingeben
 

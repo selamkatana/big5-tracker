@@ -58,6 +58,20 @@ for (const scheme of ['light', 'dark']) {
   check(await page.textContent('#scount') === '10', 'MIDI importiert (2 Takte): ' + await page.textContent('#scount'));
   check((await page.textContent('#sref')).startsWith('G-Dur'), 'G-Dur erkannt: ' + await page.textContent('#sref'));
 
+  // Logic-Skript mit eigenen Patterns herunterladen und im Scripter-Nachbau laden
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#savescript')]);
+  const txt = (await import('node:fs')).readFileSync(await dl.path(), 'utf8');
+  const { createHost } = await import('./host.mjs');
+  const h = createHost({ script: txt });
+  const idx = h.params.find((p) => p.name === 'Pattern').valueStrings.findIndex((n) => n.startsWith('★'));
+  check(idx > 0, 'heruntergeladenes Skript enthält eigenes Pattern (★)');
+  h.set('Pattern', idx);
+  h.play(1, 3, [55, 59, 62].map((p) => ({ beat: 1, type: 'on', a: p, b: 100 })));
+  check(h.notes().length > 0, 'eigenes Pattern spielt im Plugin');
+  const [md] = await Promise.all([page.waitForEvent('download'), page.click('#savemid')]);
+  const mbytes = (await import('node:fs')).readFileSync(await md.path());
+  check(mbytes.slice(0, 4).toString() === 'MThd', 'MIDI-Datei gespeichert');
+
   // Vorhören startet ohne Fehler
   await page.click('#play');
   await page.waitForTimeout(400);

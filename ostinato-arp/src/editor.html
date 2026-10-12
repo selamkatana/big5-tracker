@@ -272,8 +272,9 @@ details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
       <textarea id="code" rows="7" readonly spellcheck="false" wrap="off"></textarea>
       <div class="row">
         <button id="copy" class="primary">Code kopieren</button>
-        <button id="savemid">Als .mid speichern</button>
+        <button id="savemid">Als MIDI speichern</button>
       </div>
+      <button id="savescript">Logic-Skript inkl. meiner Patterns herunterladen</button>
       <div class="msg" id="expmsg"></div>
     </section>
 
@@ -292,6 +293,7 @@ details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 
 <script>
 /*__CORE__*/
+/*__SCRIPT__*/
 </script>
 <script>
 (function () {
@@ -988,13 +990,66 @@ details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
     if (!$('code').value) { $('expmsg').className = 'msg err'; $('expmsg').textContent = 'Noch keine Noten im Pattern.'; return; }
     copyText($('code').value, $('expmsg'), 'Kopiert. In Logic bei USER_PATTERNS einfügen und „Run Script“ drücken.');
   });
-  on('savemid', 'click', function () {
-    var data = writeMidi(sortedNotes(), +$('tempo').value || 120, S.name);
-    var url = URL.createObjectURL(new Blob([data], { type: 'audio/midi' }));
-    var a = document.createElement('a'); a.href = url; a.download = (S.name || 'pattern').replace(/[^\w\-äöüÄÖÜ ]+/g, '') + '.mid';
+  // Datei anbieten: im claude.ai-Viewer über die downloads-Fähigkeit, lokal über einen Download-Link.
+  var dlCap = null;
+  if (window.claude && window.claude.use) window.claude.use('downloads').then(function (d) { dlCap = d; }, function () {});
+  function crc32(u8) {
+    var c, crc = -1;
+    for (var i = 0; i < u8.length; i++) { c = (crc ^ u8[i]) & 255; for (var k = 0; k < 8; k++) c = c & 1 ? (c >>> 1) ^ 0xEDB88320 : c >>> 1; crc = (crc >>> 8) ^ c; }
+    return (crc ^ -1) >>> 0;
+  }
+  function zipOne(name, data) {
+    var nm = new TextEncoder().encode(name), crc = crc32(data), n = data.length;
+    var le = function (v, b) { var a = []; for (var i = 0; i < b; i++) a.push((v >>> (8 * i)) & 255); return a; };
+    var local = [].concat([0x50, 0x4b, 3, 4], le(20, 2), le(0, 2), le(0, 2), le(0, 2), le(0x21, 2), le(crc, 4), le(n, 4), le(n, 4), le(nm.length, 2), le(0, 2));
+    var central = [].concat([0x50, 0x4b, 1, 2], le(20, 2), le(20, 2), le(0, 2), le(0, 2), le(0, 2), le(0x21, 2), le(crc, 4), le(n, 4), le(n, 4), le(nm.length, 2), le(0, 2), le(0, 2), le(0, 2), le(0, 2), le(0, 4), le(0, 4));
+    var off = local.length + nm.length + n, clen = central.length + nm.length;
+    var end = [].concat([0x50, 0x4b, 5, 6], le(0, 2), le(0, 2), le(1, 2), le(1, 2), le(clen, 4), le(off, 4), le(0, 2));
+    var out = new Uint8Array(off + clen + end.length), p = 0;
+    [local, nm, data, central, nm, end].forEach(function (part) { out.set(part, p); p += part.length; });
+    return out;
+  }
+  function offerFile(filename, data, msgEl, extra) {
+    extra = extra || '';
+    if (dlCap) {
+      var fn = filename, d = data;
+      if (/\.mid$/.test(fn)) { d = zipOne(fn, data); fn = fn.replace(/\.mid$/, '.zip'); }
+      dlCap.save({ filename: fn, data: d }).then(function () {
+        msgEl.className = 'msg ok'; msgEl.textContent = fn + ' gespeichert.' + (fn !== filename ? ' Die MIDI-Datei liegt im ZIP.' : '') + extra;
+      }, function (e) {
+        msgEl.className = e && e.code === 'declined' ? 'msg' : 'msg err';
+        msgEl.textContent = e && e.code === 'declined' ? 'Speichern abgebrochen.' : 'Speichern ist hier nicht möglich (' + ((e && e.code) || 'unbekannt') + ').';
+      });
+      return;
+    }
+    var url = URL.createObjectURL(new Blob([data]));
+    var a = document.createElement('a'); a.href = url; a.download = filename;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
-    $('expmsg').className = 'msg'; $('expmsg').textContent = 'Falls kein Download startet: Seite als lokale Datei öffnen (Download-Version aus dem Projektordner).';
+    msgEl.className = 'msg ok'; msgEl.textContent = filename + ' wird gespeichert.' + extra;
+  }
+  function safeName(s) { return (s || 'pattern').replace(/[^\w\-äöüÄÖÜ ]+/g, '').trim() || 'pattern'; }
+  on('savemid', 'click', function () {
+    if (!S.notes.length) { $('expmsg').className = 'msg err'; $('expmsg').textContent = 'Noch keine Noten im Pattern.'; return; }
+    offerFile(safeName(S.name) + '.mid', writeMidi(sortedNotes(), +$('tempo').value || 120, S.name), $('expmsg'));
+  });
+  on('savescript', 'click', function () {
+    var msg = $('expmsg');
+    if (typeof LOGIC_SCRIPT !== 'string') { msg.className = 'msg err'; msg.textContent = 'Skript-Vorlage fehlt in dieser Version.'; return; }
+    var blocks = [], names = {};
+    var add = function (lines, name) { if (names[name]) return; names[name] = 1; blocks.push(lines.map(function (l) { return '  ' + l; }).join('\n')); };
+    try { var cur = compiled(); if (cur) add(codeFor(cur), S.name); } catch (x) { /* übersprungen */ }
+    var keep = serialize();
+    libGet().forEach(function (it) {
+      load(it.data, true);
+      try { var p = compiled(); if (p) add(codeFor(p), S.name); } catch (x) { /* übersprungen */ }
+    });
+    load(keep, true);
+    var marker = 'var USER_PATTERNS = [\n';
+    var i = LOGIC_SCRIPT.indexOf(marker);
+    if (i < 0 || !blocks.length) { msg.className = 'msg err'; msg.textContent = 'Keine Patterns zum Einfügen.'; return; }
+    var text = LOGIC_SCRIPT.slice(0, i + marker.length) + blocks.join('\n') + '\n' + LOGIC_SCRIPT.slice(i + marker.length);
+    offerFile('OstinatoArp-Logic.txt', text, msg, ' Enthält ' + blocks.length + ' eigene(s) Pattern(s). Inhalt komplett in den Scripter einfügen.');
   });
 
   /* ---------------- Bibliothek ---------------- */

@@ -19,7 +19,8 @@ console.log('dist/OstinatoArp-Logic.js', script.length, 'Zeichen');
 if (existsSync(new URL('./src/editor.html', import.meta.url))) {
   const html = read('./src/editor.html')
     .replace('/*__CORE__*/', () => core)
-    .replace('/*__PATTERNS__*/', () => patterns);
+    .replace('/*__PATTERNS__*/', () => patterns)
+    .replace('/*__SCRIPT__*/', () => 'var LOGIC_SCRIPT = ' + JSON.stringify(script).replace(/<\//g, '<\\/') + ';');
   // Lokale Datei: vollständiges Dokument. Mit --fragment <pfad> zusätzlich die Version ohne Gerüst (für das Web-Artifact).
   const full = '<!doctype html>\n<html lang="de">\n<head>\n<meta charset="utf-8">\n' +
     '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n</head>\n<body>\n' + html + '\n</body>\n</html>\n';
